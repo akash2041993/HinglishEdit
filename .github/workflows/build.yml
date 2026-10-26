@@ -94,7 +94,15 @@ jobs:
         run: |
           pip install numpy pyinstaller
           export PATH="$PWD/ffmpeg:$PATH"
-          python tests/test_end_to_end.py
+          set +e
+          python tests/test_end_to_end.py > test.log 2>&1
+          rc=$?
+          cat test.log
+          if [ $rc -ne 0 ]; then
+            msg=$(tail -40 test.log | python3 -c "import sys; print(sys.stdin.read().replace('%','%25').replace('\\r','').replace('\\n','%0A'))")
+            echo "::error title=Mac helper test failed::$msg"
+            exit 1
+          fi
 
       - name: Build the Mac helper (Python + ffmpeg + fonts inside)
         working-directory: helper
