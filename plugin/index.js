@@ -71,20 +71,54 @@ const port = 47800; // must match manifest.json network permission
 /** @type {any} */
 let health = null;
 
+const HOSTS = ["http://127.0.0.1:" + port, "http://localhost:" + port];
+let hostIdx = 0;
+/** @type {string} */
+let lastNetError = "";
+
+/** XMLHttpRequest fallback (some UXP builds treat fetch and XHR differently). */
+function xhr(/** @type {string} */ method, /** @type {string} */ url, /** @type {string|undefined} */ body) {
+  return new Promise((resolve, reject) => {
+    const x = new XMLHttpRequest();
+    x.open(method, url);
+    x.setRequestHeader("Content-Type", "application/json");
+    x.onload = () => resolve({ ok: x.status >= 200 && x.status < 300, status: x.status, text: x.responseText });
+    x.onerror = () => reject(new Error("XHR network error"));
+    x.ontimeout = () => reject(new Error("XHR timeout"));
+    x.send(body);
+  });
+}
+
 /** @param {string} method @param {string} path @param {any} [body] */
 async function api(method, path, body) {
-  let r;
-  try {
-    r = await fetch(`http://127.0.0.1:${port}${path}`, {
-      method, headers: { "Content-Type": "application/json" }, body: body ? JSON.stringify(body) : undefined,
-    });
-  } catch (e) {
+  const payload = body ? JSON.stringify(body) : undefined;
+  /** @type {any} */
+  let res = null;
+  const errors = [];
+  for (let k = 0; k < HOSTS.length && !res; k++) {
+    const host = HOSTS[(hostIdx + k) % HOSTS.length];
+    try {
+      const r = await fetch(host + path, { method, headers: { "Content-Type": "application/json" }, body: payload });
+      res = { ok: r.ok, status: r.status, text: await r.text() };
+      hostIdx = (hostIdx + k) % HOSTS.length;
+    } catch (e) {
+      errors.push(`fetch ${host}: ${(/** @type {any} */ (e)).message || e}`);
+      try {
+        res = await xhr(method, host + path, payload);
+        hostIdx = (hostIdx + k) % HOSTS.length;
+      } catch (e2) {
+        errors.push(`xhr ${host}: ${(/** @type {any} */ (e2)).message || e2}`);
+      }
+    }
+  }
+  if (!res) {
+    lastNetError = errors.join(" | ");
     setHelperDown(true);
-    throw new Error("The helper app is not running. Start it (Settings tab) and try again.");
+    throw new Error("Can't reach the helper app. Is its window open? Details: " + lastNetError);
   }
   let data = {};
-  try { data = await r.json(); } catch (e) { /* empty */ }
-  if (!r.ok) throw new Error(/** @type {any} */ (data).error || `Helper error ${r.status}`);
+  try { data = res.text ? JSON.parse(res.text) : {}; } catch (e) { /* not JSON */ }
+  if (!res.ok) throw new Error(/** @type {any} */ (data).error || `Helper error ${res.status}`);
   return /** @type {any} */ (data);
 }
 
@@ -117,7 +151,8 @@ async function checkHelper() {
     fillStyles();
     return true;
   } catch (e) {
-    $("helperInfo").innerHTML = `<span class="err">Not connected.</span> Open "Hinglish Edit Helper" from the desktop or Start menu (or click Start helper above).`;
+    $("helperInfo").innerHTML = `<span class="err">Not connected.</span> Open "Hinglish Edit Helper" from the desktop or Start menu (or click Start helper above).` +
+      (lastNetError ? `<br><span class="small-text">Details: ${esc(lastNetError)}</span>` : "");
     setHelperDown(true);
     return false;
   }

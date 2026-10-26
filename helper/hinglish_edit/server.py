@@ -2,6 +2,8 @@
 import json
 import os
 import re
+import socket
+import threading
 import time
 import traceback
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -285,7 +287,12 @@ class Handler(BaseHTTPRequestHandler):
         self.wfile.write(data)
 
     def do_OPTIONS(self):  # noqa: N802
-        self._send(204, {})
+        self.send_response(204)
+        self.send_header("Access-Control-Allow-Origin", "*")
+        self.send_header("Access-Control-Allow-Headers", "Content-Type")
+        self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+        self.send_header("Access-Control-Max-Age", "86400")
+        self.end_headers()
 
     def _handle(self, method):
         try:
@@ -314,9 +321,19 @@ class Handler(BaseHTTPRequestHandler):
             super().log_message(fmt, *args)
 
 
+class _Server6(ThreadingHTTPServer):
+    address_family = socket.AF_INET6
+
+
 def serve(port=None):
     port = int(port or os.environ.get("HINGLISH_PORT") or config.DEFAULT_PORT)
     httpd = ThreadingHTTPServer(("127.0.0.1", port), Handler)
+    # also answer on IPv6 loopback, in case "localhost" resolves to ::1
+    try:
+        httpd6 = _Server6(("::1", port), Handler)
+        threading.Thread(target=httpd6.serve_forever, daemon=True).start()
+    except OSError:
+        pass
     print(f"Hinglish Edit helper {config.VERSION} is running on http://127.0.0.1:{port}")
     print("Keep this window open while you use the panel in Premiere. Close it to stop.")
     info = media.ffmpeg_info()
