@@ -4,7 +4,7 @@ import os
 import sys
 import threading
 
-VERSION = "1.0.3"
+VERSION = "1.0.4"
 DEFAULT_PORT = 47800
 
 _lock = threading.Lock()
@@ -22,6 +22,8 @@ def app_dir():
     if not base:
         if os.name == "nt":
             base = os.path.join(os.environ.get("LOCALAPPDATA") or os.path.expanduser("~"), "HinglishEdit")
+        elif sys.platform == "darwin":
+            base = os.path.join(os.path.expanduser("~"), "Library", "Application Support", "HinglishEdit")
         else:
             base = os.path.join(os.path.expanduser("~"), ".hinglish_edit")
     os.makedirs(base, exist_ok=True)

@@ -2,7 +2,7 @@
   "manifestVersion": 5,
   "id": "com.azone.hinglishedit",
   "name": "Hinglish Edit",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "main": "index.html",
   "host": {
     "app": "premierepro",
@@ -18,7 +18,10 @@
       "extensions": [
         ".bat",
         ".cmd",
-        ".exe"
+        ".exe",
+        ".command",
+        ".app",
+        ".sh"
       ]
     }
   },

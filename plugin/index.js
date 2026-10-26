@@ -668,9 +668,15 @@ $("btnInstallFfmpeg").addEventListener("click", busy("btnInstallFfmpeg", async (
   toast("ffmpeg installed.");
 }));
 
+/** true on macOS */
+const IS_MAC = (() => {
+  try { return String(require("os").platform()).toLowerCase().indexOf("darwin") >= 0; } catch (e) { /* fall through */ }
+  try { return /mac/i.test(navigator.platform || ""); } catch (e) { return false; }
+})();
+
 async function pickHelper() {
   const fs = uxp.storage.localFileSystem;
-  const file = await fs.getFileForOpening({ types: ["bat", "exe", "cmd"] });
+  const file = await fs.getFileForOpening({ types: IS_MAC ? ["command", "app", "sh"] : ["bat", "exe", "cmd"] });
   if (!file) return null;
   const path = /** @type {any} */ (file).nativePath;
   store.set("helperPath", path);
@@ -680,7 +686,10 @@ $("btnPickHelper").addEventListener("click", busy("btnPickHelper", async () => {
   const p = await pickHelper();
   if (p) toast("Saved. Use \"Start helper\" next time.");
 }));
-const DEFAULT_HELPER = "C:\\Program Files\\HinglishEdit\\HinglishEditHelper.exe"; // where the installer puts it
+// where the installers put it
+const DEFAULT_HELPER = IS_MAC
+  ? "/Applications/HinglishEdit/Start Hinglish Edit Helper.command"
+  : "C:\\Program Files\\HinglishEdit\\HinglishEditHelper.exe";
 $("btnHelperStart").addEventListener("click", busy("btnHelperStart", async () => {
   const why = "Start the Hinglish Edit helper app on this computer";
   let path = store.get("helperPath", null);
@@ -693,7 +702,7 @@ $("btnHelperStart").addEventListener("click", busy("btnHelperStart", async () =>
     res = await open(path);
   }
   if (res) throw new Error("Could not start the helper: " + res);
-  toast("Starting the helper… a window opens. Keep it open.");
+  toast(IS_MAC ? "Starting the helper… a Terminal window opens. Keep it open." : "Starting the helper… a window opens. Keep it open.");
   setTimeout(checkHelper, 3000);
   setTimeout(checkHelper, 7000);
 }));

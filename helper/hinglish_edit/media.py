@@ -87,14 +87,14 @@ def run(cmd, timeout=None, progress=None, duration=None):
     return r.stdout
 
 
-def install_ffmpeg(progress=None):
-    """Windows only: download a static ffmpeg build into the helper folder."""
-    if os.name != "nt":
-        raise MediaError("Automatic install is only for Windows. Install ffmpeg with your package manager.")
-    dest = os.path.join(app_dir(), "ffmpeg")
-    os.makedirs(dest, exist_ok=True)
-    tmp = os.path.join(tempfile.gettempdir(), "hinglish_ffmpeg.zip")
-    with urllib.request.urlopen(FFMPEG_ZIP_URL, timeout=60) as r, open(tmp, "wb") as f:
+MAC_FFMPEG_URLS = {
+    "arm64": "https://ffmpeg.martin-riedl.de/redirect/latest/macos/arm64/release/{}.zip",
+    "x86_64": "https://ffmpeg.martin-riedl.de/redirect/latest/macos/amd64/release/{}.zip",
+}
+
+
+def _download(url, tmp, progress, lo, hi):
+    with urllib.request.urlopen(url, timeout=60) as r, open(tmp, "wb") as f:
         total = int(r.headers.get("Content-Length") or 0)
         done = 0
         while True:
@@ -104,15 +104,35 @@ def install_ffmpeg(progress=None):
             f.write(chunk)
             done += len(chunk)
             if progress and total:
-                progress(0.9 * done / total)
-    with zipfile.ZipFile(tmp) as z:
-        for m in z.namelist():
-            base = os.path.basename(m)
-            if base in ("ffmpeg.exe", "ffprobe.exe"):
-                os.makedirs(os.path.join(dest, "bin"), exist_ok=True)
-                with z.open(m) as src, open(os.path.join(dest, "bin", base), "wb") as out:
-                    shutil.copyfileobj(src, out)
-    os.remove(tmp)
+                progress(lo + (hi - lo) * done / total)
+
+
+def install_ffmpeg(progress=None):
+    """Download a static ffmpeg build into the helper's folder (Windows and Mac).
+    The installers already include ffmpeg; this is only for running from source."""
+    import platform
+    dest = os.path.join(app_dir(), "ffmpeg", "bin")
+    os.makedirs(dest, exist_ok=True)
+    tmp = os.path.join(tempfile.gettempdir(), "hinglish_ffmpeg.zip")
+    if os.name == "nt":
+        jobs = [(FFMPEG_ZIP_URL, ("ffmpeg.exe", "ffprobe.exe"))]
+    elif sys.platform == "darwin":
+        arch = "arm64" if platform.machine() == "arm64" else "x86_64"
+        jobs = [(MAC_FFMPEG_URLS[arch].format(n), (n,)) for n in ("ffmpeg", "ffprobe")]
+    else:
+        raise MediaError("Automatic install is for Windows and Mac. Install ffmpeg with your package manager.")
+    for k, (url, names) in enumerate(jobs):
+        lo, hi = 0.95 * k / len(jobs), 0.95 * (k + 1) / len(jobs)
+        _download(url, tmp, progress, lo, hi)
+        with zipfile.ZipFile(tmp) as z:
+            for m in z.namelist():
+                base = os.path.basename(m)
+                if base in names:
+                    out_path = os.path.join(dest, base)
+                    with z.open(m) as src, open(out_path, "wb") as out:
+                        shutil.copyfileobj(src, out)
+                    os.chmod(out_path, 0o755)
+        os.remove(tmp)
     if progress:
         progress(1.0)
     return find_tool("ffmpeg")

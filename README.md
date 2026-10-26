@@ -21,9 +21,36 @@ happens in the helper on your own PC.
 
 ---
 
+## Install on Mac (Apple Silicon: M1 and newer, including Mac mini)
+
+1. Close Premiere Pro. Download **`HinglishEdit-Mac.pkg`** from the latest
+   [release](https://github.com/akash2041993/HinglishEdit/releases).
+2. Double-click it. Because the installer is not signed with a paid Apple developer ID, the Mac says
+   *"Apple could not verify…"*. Click **Done** (not *Move to Trash*), then open
+   **System Settings ▸ Privacy & Security**, scroll down and click **Open Anyway** next to
+   *"HinglishEdit-Mac.pkg was blocked"*. Enter your Mac password and finish the installer.
+3. The installer puts everything in **Applications ▸ HinglishEdit**, installs the Premiere panel, and starts the
+   helper in a **Terminal** window. Keep that window open while you edit.
+   Next time, double-click **Start Hinglish Edit Helper.command** in that folder, or click **Start helper** in the panel.
+4. Open Premiere ▸ **Window ▸ UXP Plugins ▸ Hinglish Edit**. If it is not there, double-click
+   **HinglishEdit.ccx** in Applications ▸ HinglishEdit.
+5. The first time the helper reads a video from Desktop, Documents or an external drive, the Mac asks
+   *"Terminal would like to access…"*: click **Allow**.
+
+To remove it: double-click **Uninstall Hinglish Edit.command** in Applications ▸ HinglishEdit.
+Settings and outputs on Mac are in `~/Library/Application Support/HinglishEdit`.
+Problems during install are written to `/tmp/hinglish-edit-install.log`.
+
+## Install on Windows
+
+Download **`HinglishEdit-Setup.exe`** from the latest release and run it (close Premiere first). The sections
+below describe the manual setup from source.
+
+---
+
 ## Requirements
 
-- Windows 10/11, **Premiere Pro 25.6 or newer** (26.x recommended)
+- Windows 10/11 or macOS (Apple Silicon), **Premiere Pro 25.6 or newer** (26.x recommended)
 - **Python 3.9+** from [python.org](https://www.python.org/downloads/windows/) (tick *Add python.exe to PATH*)
 - **ffmpeg**: the panel installs it for you (Settings ▸ *Install ffmpeg*), about 140 MB
 - For transcription, one of:
@@ -93,6 +120,9 @@ the exact curve as frame-by-frame keyframes. **Remove zoom** clears them.
 
 ## What is tested and what is not (please read)
 
+- **Mac**: the helper's full test runs on a real Apple Silicon Mac on GitHub for every build, and the built
+  helper is started and checked there. The panel and the installer itself have **not** been tried on a Mac with
+  Premiere yet.
 - **Tested here** (Linux, with ffmpeg): the helper's full flow with a generated video and a simulated
   ElevenLabs response: cut planning (fillers, repeats, pauses, protected sounds, never cutting kept words),
   the edited-timeline XML (rebuilt and listened to, checking every kept word survives), captions in Roman
@@ -113,7 +143,7 @@ the exact curve as frame-by-frame keyframes. **Remove zoom** clears them.
 - Transcription quality depends on the service. ElevenLabs is the best tested option for Hinglish; Premiere's
   free Hindi model is weaker on English words inside Hindi sentences.
 - Your API keys are stored only in the helper's settings file on your PC
-  (`%LOCALAPPDATA%\HinglishEdit\settings.json`) and sent only to the service they belong to.
+  (`%LOCALAPPDATA%\HinglishEdit\settings.json` on Windows, `~/Library/Application Support/HinglishEdit/settings.json` on Mac) and sent only to the service they belong to.
 
 ---
 

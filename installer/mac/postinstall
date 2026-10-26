@@ -1,0 +1,32 @@
+#!/bin/bash
+# Runs (as root) after the .pkg copies files to /Applications/HinglishEdit.
+# 1) installs the Premiere panel for the logged-in user  2) starts the helper in a Terminal window.
+APP="/Applications/HinglishEdit"
+LOG="/tmp/hinglish-edit-install.log"
+exec >>"$LOG" 2>&1
+echo "=== Hinglish Edit postinstall $(date)"
+chmod +x "$APP/Start Hinglish Edit Helper.command" "$APP/Uninstall Hinglish Edit.command" \
+         "$APP/HinglishEditHelper/HinglishEditHelper" "$APP"/HinglishEditHelper/_internal/ffmpeg/ff* 2>/dev/null
+xattr -dr com.apple.quarantine "$APP" 2>/dev/null || true
+
+USER_NAME=$(stat -f%Su /dev/console)
+USER_ID=$(id -u "$USER_NAME" 2>/dev/null)
+as_user() {
+  if [ -n "$USER_ID" ] && [ "$USER_NAME" != "root" ]; then
+    launchctl asuser "$USER_ID" sudo -u "$USER_NAME" "$@"
+  else
+    "$@"
+  fi
+}
+
+UPIA="/Library/Application Support/Adobe/Adobe Desktop Common/RemoteComponents/UPI/UnifiedPluginInstallerAgent/UnifiedPluginInstallerAgent.app/Contents/MacOS/UnifiedPluginInstallerAgent"
+if [ -x "$UPIA" ]; then
+  as_user "$UPIA" --install "$APP/HinglishEdit.ccx" || echo "UPIA install failed: $?"
+else
+  echo "UPIA not found - the panel must be installed by double-clicking HinglishEdit.ccx"
+fi
+
+# start the helper now (a Terminal window opens) and show the folder
+as_user open "$APP/Start Hinglish Edit Helper.command" || true
+as_user open "$APP" || true
+exit 0

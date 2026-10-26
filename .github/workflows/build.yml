@@ -66,13 +66,95 @@ jobs:
             out/HinglishEdit-Setup.exe
             HinglishEdit.ccx
 
+  mac:
+    runs-on: macos-latest   # Apple Silicon (M1/M2/M3/M4…)
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+
+      - name: Download ffmpeg for Mac (static build with libass)
+        run: |
+          mkdir -p helper/ffmpeg dl
+          for n in ffmpeg ffprobe; do
+            curl -fsSL -o dl/$n.zip "https://ffmpeg.martin-riedl.de/redirect/latest/macos/arm64/release/$n.zip"
+            unzip -o -q dl/$n.zip -d dl/$n
+            find dl/$n -type f -name $n -exec cp {} helper/ffmpeg/ \;
+          done
+          chmod +x helper/ffmpeg/*
+          xattr -c helper/ffmpeg/* || true
+          file helper/ffmpeg/ffmpeg
+          helper/ffmpeg/ffmpeg -hide_banner -version | head -1
+          helper/ffmpeg/ffmpeg -hide_banner -h filter=ass | grep alpha
+
+      - name: Test the helper on Mac (cuts, XML, captions, render)
+        working-directory: helper
+        run: |
+          pip install numpy pyinstaller
+          export PATH="$PWD/ffmpeg:$PATH"
+          python tests/test_end_to_end.py
+
+      - name: Build the Mac helper (Python + ffmpeg + fonts inside)
+        working-directory: helper
+        run: |
+          pyinstaller --noconfirm --onedir --console --name HinglishEditHelper \
+            --add-data "fonts:fonts" --add-data "ffmpeg:ffmpeg" run_helper.py
+
+      - name: Smoke test the built helper
+        run: |
+          helper/dist/HinglishEditHelper/HinglishEditHelper > helper.log 2>&1 &
+          for i in $(seq 1 20); do sleep 1; curl -s http://127.0.0.1:47800/health > health.json && break; done
+          cat health.json; echo
+          python3 -c "import json; h=json.load(open('health.json')); assert h['ok'] and h['ffmpeg']['found'] and h['ffmpeg']['ass'], h"
+          kill %1 || true
+
+      - name: Package the Premiere panel (.ccx)
+        run: cd plugin && zip -r -X ../HinglishEdit.ccx . -x '.*'
+
+      - name: Build the Mac installer (.pkg)
+        run: |
+          V="1.0.${{ github.run_number }}"
+          mkdir -p payload scripts out
+          cp -R helper/dist/HinglishEditHelper payload/
+          cp HinglishEdit.ccx README.md payload/
+          cp "installer/mac/Start Hinglish Edit Helper.command" "installer/mac/Uninstall Hinglish Edit.command" payload/
+          chmod +x payload/*.command
+          cp installer/mac/postinstall scripts/ && chmod +x scripts/postinstall
+          pkgbuild --root payload --scripts scripts --identifier com.azone.hinglishedit --version "$V" \
+            --install-location /Applications/HinglishEdit out/HinglishEdit-Mac.pkg
+          ls -la out
+          pkgutil --payload-files out/HinglishEdit-Mac.pkg | head -20
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: hinglish-edit-mac
+          path: out/HinglishEdit-Mac.pkg
+
+  release:
+    needs: [windows, mac]
+    if: always() && (needs.windows.result == 'success' || needs.mac.result == 'success')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v7
+        with:
+          path: dist
+          merge-multiple: true
+      - run: |
+          find dist -mindepth 2 -type f -exec mv {} dist/ \;
+          ls -la dist
+
       - uses: softprops/action-gh-release@v3
         with:
           tag_name: build-${{ github.run_number }}
           name: Hinglish Edit 1.0.${{ github.run_number }}
           body: |
-            Download HinglishEdit-Setup.exe and run it (close Premiere first).
-            It installs the helper app and the Premiere panel. Then open Premiere > Window > UXP Plugins > Hinglish Edit.
+            Windows: download HinglishEdit-Setup.exe and run it (close Premiere first).
+            Mac (Apple Silicon): download HinglishEdit-Mac.pkg and open it (close Premiere first).
+            Both install the helper app and the Premiere panel. Then open Premiere > Window > UXP Plugins > Hinglish Edit.
           files: |
-            out/HinglishEdit-Setup.exe
-            HinglishEdit.ccx
+            dist/HinglishEdit-Setup.exe
+            dist/HinglishEdit-Mac.pkg
+            dist/HinglishEdit.ccx
+          fail_on_unmatched_files: false
