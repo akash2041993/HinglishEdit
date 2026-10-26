@@ -1,0 +1,78 @@
+name: Build Hinglish Edit installer
+
+on:
+  push:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+
+      - name: Download ffmpeg (static build)
+        shell: pwsh
+        run: |
+          Invoke-WebRequest https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-win64-gpl.zip -OutFile ff.zip
+          Expand-Archive ff.zip -DestinationPath ff
+          New-Item -ItemType Directory -Force helper/ffmpeg | Out-Null
+          Get-ChildItem ff -Recurse -Include ffmpeg.exe,ffprobe.exe | Copy-Item -Destination helper/ffmpeg
+          helper/ffmpeg/ffmpeg.exe -hide_banner -h filter=ass | Select-String alpha
+
+      - name: Build HinglishEditHelper.exe (Python + ffmpeg + fonts inside)
+        shell: bash
+        working-directory: helper
+        run: |
+          pip install pyinstaller numpy
+          pyinstaller --noconfirm --onedir --console --name HinglishEditHelper \
+            --add-data "fonts;fonts" --add-data "ffmpeg;ffmpeg" run_helper.py
+
+      - name: Smoke test the built helper
+        shell: pwsh
+        run: |
+          $p = Start-Process helper/dist/HinglishEditHelper/HinglishEditHelper.exe -PassThru
+          Start-Sleep -Seconds 8
+          $r = Invoke-RestMethod http://127.0.0.1:47800/health
+          if (-not $r.ok -or -not $r.ffmpeg.found -or -not $r.ffmpeg.ass) { throw "helper health check failed" }
+          Write-Host "helper ok:" $r.version $r.ffmpeg.version
+          Stop-Process -Id $p.Id
+
+      - name: Package the Premiere panel (.ccx)
+        shell: pwsh
+        run: |
+          Compress-Archive -Path plugin/* -DestinationPath HinglishEdit.zip
+          Move-Item HinglishEdit.zip HinglishEdit.ccx
+
+      - name: Build the installer
+        shell: pwsh
+        run: |
+          $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
+          if (-not (Test-Path $iscc)) { choco install innosetup -y --no-progress; $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" }
+          $env:HE_VERSION = "1.0.${{ github.run_number }}"
+          & $iscc installer/HinglishEdit.iss
+          if ($LASTEXITCODE -ne 0) { throw "installer build failed" }
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: hinglish-edit
+          path: |
+            out/HinglishEdit-Setup.exe
+            HinglishEdit.ccx
+
+      - uses: softprops/action-gh-release@v3
+        with:
+          tag_name: build-${{ github.run_number }}
+          name: Hinglish Edit 1.0.${{ github.run_number }}
+          body: |
+            Download HinglishEdit-Setup.exe and run it (close Premiere first).
+            It installs the helper app and the Premiere panel. Then open Premiere > Window > UXP Plugins > Hinglish Edit.
+          files: |
+            out/HinglishEdit-Setup.exe
+            HinglishEdit.ccx
