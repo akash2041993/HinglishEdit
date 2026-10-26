@@ -18,6 +18,7 @@
     <button class="tab" data-tab="settings">Settings</button>
   </div>
 
+  <div id="scroller">
   <!-- ============================== CUTS -->
   <div class="page" id="page-cuts">
     <div class="row muted" id="seqName">Active sequence: –</div>
@@ -26,7 +27,7 @@
       <div class="row">
         <label class="lbl">Transcribe with</label>
         <select id="provider">
-          <option value="elevenlabs">ElevenLabs Scribe (best for Hinglish)</option>
+          <option selected value="elevenlabs">ElevenLabs Scribe (best for Hinglish)</option>
           <option value="premiere">Premiere built-in (free)</option>
           <option value="deepgram">Deepgram Nova-3</option>
         </select>
@@ -34,7 +35,7 @@
       <div class="row">
         <label class="lbl">Language</label>
         <select id="language">
-          <option value="auto">Auto / mixed (Hinglish)</option>
+          <option selected value="auto">Auto / mixed (Hinglish)</option>
           <option value="hi">Mostly Hindi</option>
           <option value="en">Mostly English</option>
         </select>
@@ -105,7 +106,7 @@
         <div class="row">
           <label class="lbl">Script</label>
           <select id="capScript">
-            <option value="roman">Roman Hinglish (kya haal hai)</option>
+            <option selected value="roman">Roman Hinglish (kya haal hai)</option>
             <option value="devanagari">Devanagari (क्या हाल है)</option>
             <option value="original">As transcribed</option>
           </select>
@@ -120,8 +121,9 @@
       </div>
 
       <div class="card">
-        <div class="row between"><span class="lbl">Customize</span>
+        <div class="row between"><button id="btnCustomize" class="small">Customize ▾</button>
           <button id="btnStyleReset" class="small quiet">Reset design</button></div>
+        <div id="customizeBody" class="hidden">
         <div class="row"><label class="lbl">Font</label><select id="sFont"></select></div>
         <div class="row layoutOnly"><label class="lbl">Big word font</label><select id="sEmphFont"></select></div>
         <div class="row layoutOnly"><label class="lbl">Big word size</label><input type="range" id="sEmphScale" min="1.2" max="4" step="0.1"><span id="sEmphScaleV" class="val"></span></div>
@@ -137,36 +139,29 @@
         <div class="row"><label class="lbl"><input type="checkbox" id="sBox"> Box</label><input id="sBoxColor" class="hex" maxlength="7"><span class="swatch" id="sBoxColorSw"></span>
           <input type="range" id="sBoxOpacity" min="10" max="100" step="5"><span id="sBoxOpacityV" class="val"></span></div>
         <div class="row"><label class="lbl">Position</label>
-          <select id="sPosition"><option value="top">Top</option><option value="middle">Middle</option><option value="bottom">Bottom</option></select>
+          <select id="sPosition"><option selected value="top">Top</option><option value="middle">Middle</option><option value="bottom">Bottom</option></select>
           <input type="range" id="sY" min="5" max="97" step="1"><span id="sYV" class="val"></span></div>
         <div class="row"><label class="lbl">Animation</label>
           <select id="sAnimation">
-            <option value="none">None</option><option value="fade">Fade</option><option value="pop">Pop in</option>
+            <option selected value="none">None</option><option value="fade">Fade</option><option value="pop">Pop in</option>
             <option value="reveal">Words appear as spoken</option>
             <option value="word_color">Active word color</option><option value="word_pop">Active word pop</option>
             <option value="karaoke">Karaoke fill</option><option value="one_word">One word at a time</option>
           </select></div>
         <div class="row"><label class="lbl">Words / caption</label><input type="range" id="sWords" min="1" max="12" step="1"><span id="sWordsV" class="val"></span></div>
-        <div class="row"><label class="lbl">Lines</label><select id="sLines"><option value="1">1</option><option value="2">2</option></select>
+        <div class="row"><label class="lbl">Lines</label><select id="sLines"><option selected value="1">1</option><option value="2">2</option></select>
           <label class="inline"><input type="checkbox" id="sUpper"> UPPERCASE (English)</label></div>
         <div class="row"><label class="lbl">Timing shift</label><input type="range" id="sOffset" min="-0.6" max="0.6" step="0.05" value="0"><span id="sOffsetV" class="val"></span></div>
         <div class="muted small-text">Changing words / lines / timing / script needs "Make captions" again. Colors and fonts apply on preview and render.</div>
+        </div>
       </div>
 
       <div id="capListWrap" class="hidden">
-        <div class="row between">
-          <span class="lbl">Captions <span id="capCount" class="muted small-text"></span></span>
-          <button id="btnPreview" class="small">Preview selected</button>
-        </div>
-        <img id="capPreview" class="preview hidden">
-        <div class="muted small-text">Edit any caption below. Put *stars* around a word to make it the big word: ye *galti* mat karna</div>
-        <div id="capList" class="list tall"></div>
-
         <div class="card">
           <div class="row">
             <label class="lbl">Range</label>
             <select id="capRange">
-              <option value="all">Whole sequence</option>
+              <option selected value="all">Whole sequence</option>
               <option value="inout">Sequence In → Out</option>
               <option value="hook">First seconds (hook)</option>
             </select>
@@ -179,6 +174,15 @@
           <div id="capProgress" class="progress hidden"><div class="fill"></div></div>
           <div id="capStatus" class="small-text"></div>
         </div>
+        <div class="row between">
+          <span class="lbl">Captions <span id="capCount" class="muted small-text"></span></span>
+          <button id="btnPreview" class="small">Preview selected</button>
+        </div>
+        <img id="capPreview" class="preview hidden">
+        <div class="muted small-text">Edit any caption below. Put *stars* around a word to make it the big word: ye *galti* mat karna</div>
+        <div id="capList" class="list tall"></div>
+
+
       </div>
     </div>
   </div>
@@ -189,7 +193,7 @@
       <div class="muted small-text">Select clip(s) in the timeline, put the playhead where the zoom should start, then click Apply.</div>
       <div class="row"><label class="lbl">Type</label>
         <select id="zType">
-          <option value="in">Zoom in</option>
+          <option selected value="in">Zoom in</option>
           <option value="out">Zoom out (clip starts zoomed)</option>
           <option value="punch">Punch in, hold, back out</option>
           <option value="push">Slow push over the whole clip</option>
@@ -199,13 +203,13 @@
       <div class="row" id="zHoldRow"><label class="lbl">Hold</label><input type="range" id="zHold" min="0" max="6" step="0.1" value="1.5"><span id="zHoldV" class="val"></span></div>
       <div class="row"><label class="lbl">Easing</label>
         <select id="zEase">
-          <option value="smooth">Smooth (2 editable Bezier keyframes)</option>
+          <option selected value="smooth">Smooth (2 editable Bezier keyframes)</option>
           <option value="strong">Strong ease in-out (exact curve)</option>
           <option value="snap">Snap (fast then settles)</option>
           <option value="linear">Linear</option>
         </select></div>
       <div class="row"><label class="lbl">Start at</label>
-        <select id="zAt"><option value="playhead">Playhead</option><option value="start">Clip start</option></select></div>
+        <select id="zAt"><option selected value="playhead">Playhead</option><option value="start">Clip start</option></select></div>
       <div class="row wrap">
         <button id="btnZoom" class="cta">Apply zoom</button>
         <button id="btnZoomRemove" class="small quiet">Remove zoom</button>
@@ -215,7 +219,7 @@
     <div class="card">
       <div class="row"><label class="lbl">Keyframe timing</label>
         <select id="zTimeMode">
-          <option value="source">Source time (default)</option>
+          <option selected value="source">Source time (default)</option>
           <option value="clip">From clip start</option>
           <option value="sequence">Sequence time</option>
         </select></div>
@@ -253,6 +257,7 @@
     <div id="setStatus" class="small-text"></div>
   </div>
 
+  </div>
   <div id="toast" class="toast hidden"></div>
   <script src="index.js"></script>
 </body>

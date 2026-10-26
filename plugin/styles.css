@@ -1,7 +1,11 @@
 /* UXP supports flexbox but not CSS grid; keep layout simple. */
+html, body { height: 100%; }
 body {
   margin: 0;
-  padding: 0 10px 16px 10px;
+  padding: 0 10px 0 10px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
   font-family: "Adobe Clean", "Segoe UI", sans-serif;
   font-size: 12px;
   color: #e6e6e6;
@@ -58,3 +62,7 @@ input[type=range] { flex: 1; }
 .toast.err { background-color: #b3261e; }
 .ok { color: #6ee7a0; }
 .err { color: #ff8a80; }
+
+/* the pages scroll; the helper bar and tabs stay on top */
+#scroller { flex: 1 1 auto; min-height: 0; overflow-y: scroll; padding-bottom: 40px; }
+.tabs, .bar { flex: 0 0 auto; }

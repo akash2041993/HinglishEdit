@@ -53,7 +53,7 @@ function up(el, cls) {
   return null;
 }
 /** @param {string} sel */
-const all = (sel) => Array.from(document.querySelectorAll(sel));
+const all = (sel) => /** @type {any[]} */ (Array.from(document.querySelectorAll(sel)));
 /** @param {any} bar @param {number} f */
 function setProgress(bar, f) { show(bar, f >= 0 && f < 1); bar.querySelector(".fill").style.width = Math.round(f * 100) + "%"; }
 /** @param {string} btnId @param {() => Promise<any>} fn */
@@ -116,6 +116,7 @@ async function api(method, path, body) {
     setHelperDown(true);
     throw new Error("Can't reach the helper app. Is its window open? Details: " + lastNetError);
   }
+  setHelperDown(false);
   let data = {};
   try { data = res.text ? JSON.parse(res.text) : {}; } catch (e) { /* not JSON */ }
   if (!res.ok) throw new Error(/** @type {any} */ (data).error || `Helper error ${res.status}`);
@@ -141,21 +142,21 @@ function setHelperDown(down) {
 async function checkHelper() {
   try {
     health = await api("GET", "/health");
-    setHelperDown(false);
-    const ff = health.ffmpeg || {};
-    $("helperInfo").innerHTML = `<span class="ok">Connected</span> · helper ${esc(health.version)} · ` +
-      (ff.found ? (ff.ass ? `<span class="ok">ffmpeg ready</span>` : `<span class="err">ffmpeg is too old for captions</span>`)
-        : `<span class="err">ffmpeg missing</span>`);
-    show($("btnInstallFfmpeg"), !ff.found || !ff.ass);
-    fillSettings(health.settings);
-    fillStyles();
-    return true;
   } catch (e) {
     $("helperInfo").innerHTML = `<span class="err">Not connected.</span> Open "Hinglish Edit Helper" from the desktop or Start menu (or click Start helper above).` +
       (lastNetError ? `<br><span class="small-text">Details: ${esc(lastNetError)}</span>` : "");
     setHelperDown(true);
     return false;
   }
+  setHelperDown(false);
+  const ff = health.ffmpeg || {};
+  $("helperInfo").innerHTML = `<span class="ok">Connected</span> · helper ${esc(health.version)} · ` +
+    (ff.found ? (ff.ass ? `<span class="ok">ffmpeg ready</span>` : `<span class="err">ffmpeg is too old for captions</span>`)
+      : `<span class="err">ffmpeg missing</span>`);
+  show($("btnInstallFfmpeg"), !ff.found || !ff.ass);
+  try { fillSettings(health.settings); } catch (e) { console.error("settings UI", e); }
+  try { fillStyles(); } catch (e) { console.error("styles UI", e); }
+  return true;
 }
 
 // ---------------------------------------------------------------- tabs + active sequence
@@ -696,6 +697,30 @@ $("btnHelperStart").addEventListener("click", busy("btnHelperStart", async () =>
   setTimeout(checkHelper, 3000);
   setTimeout(checkHelper, 7000);
 }));
+
+// ---------------------------------------------------------------- make sure every control shows a value
+function initControls() {
+  all("input[type=range]").forEach((r) => {
+    const v = r.getAttribute("value");
+    const min = Number(r.getAttribute("min") || 0), max = Number(r.getAttribute("max") || 100);
+    const cur = Number(r.value);
+    if (v != null && (isNaN(cur) || cur === min) && Number(v) !== min) r.value = v;
+    if (isNaN(Number(r.value))) r.value = String((min + max) / 2);
+  });
+  all("select").forEach((sel) => {
+    if (!sel.value && sel.options && sel.options.length) sel.value = sel.options[0].value;
+  });
+}
+initControls();
+zoomLabels();
+
+// customize section folds away so the main buttons stay in view
+$("btnCustomize").addEventListener("click", () => {
+  const box = $("customizeBody");
+  const open = box.classList.contains("hidden");
+  show(box, open);
+  $("btnCustomize").textContent = open ? "Customize ▴" : "Customize ▾";
+});
 
 // ---------------------------------------------------------------- start
 (async () => {
