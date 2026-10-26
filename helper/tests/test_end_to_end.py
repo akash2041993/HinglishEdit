@@ -129,7 +129,17 @@ def play_xml_audio(xml_path, out_wav):
     fc = ";".join(parts) + ";" + "".join(f"[s{k}]" for k in range(len(segs))) + f"concat=n={len(segs)}:v=0:a=1[o]"
     subprocess.run(["ffmpeg", "-y", "-v", "error"] + inputs + ["-filter_complex", fc, "-map", "[o]",
                     "-c:a", "pcm_s16le", out_wav], check=True)
-    return last_end / fps
+    return last_end / fps, segs
+
+
+def xml_remap(t, segs):
+    """Where source time t lands in the edited audio, using the real (frame-rounded) XML clips."""
+    pos = 0.0
+    for _, a, b in segs:
+        if a <= t < b:
+            return pos + (t - a)
+        pos += b - a
+    return None
 
 
 def main():
@@ -225,22 +235,25 @@ def main():
     pu = root.find(".//pathurl").text
     assert pu.startswith("file://localhost/") and "%20" in pu
     out_wav = os.path.join(tmp, "edited.wav")
-    new_len = play_xml_audio(x["xml_path"], out_wav)
-    assert abs(new_len - plan["summary"]["new_duration"]) < 0.1, (new_len, plan["summary"])
+    new_len, segs = play_xml_audio(x["xml_path"], out_wav)
+    # kept pieces are rounded outward to whole frames: each may grow by up to one frame, never shrink
+    grow = new_len - plan["summary"]["new_duration"]
+    assert -0.02 < grow <= (len(cl) + 1) * 1.001 / 29.97 + 0.01, (new_len, plan["summary"])
     env = media.envelope_db(out_wav)
-    applied = [{"start": c["start"], "end": c["end"]} for c in cl]
     for idx, (t, s, e) in enumerate(WORDS):
         if idx in removed_words:
             continue
-        nt = cuts.remap_time((s + e) / 2, applied)
+        # every kept word must be fully inside one clip of the XML (never clipped by frame rounding)
+        assert any(a <= s and e <= b for _, a, b in segs), f"kept word {t} {s}-{e} is cut by the XML clips"
+        nt = xml_remap((s + e) / 2, segs)
         assert nt is not None
         lvl = env[int(nt / 0.01)]
         assert lvl > -25, f"kept word {t} is silent in the edited audio ({lvl} dB at {nt:.2f}s)"
         # the whole word survived: check near its edges too
         for edge in (s + 0.03, e - 0.03):
-            ne = cuts.remap_time(edge, applied)
+            ne = xml_remap(edge, segs)
             assert ne is not None and env[int(ne / 0.01)] > -25, f"edge of {t} was clipped"
-    nl = cuts.remap_time(sum(LAUGH) / 2, applied)
+    nl = xml_remap(sum(LAUGH) / 2, segs)
     assert env[int(nl / 0.01)] > -25, "laugh missing in edited audio"
     names = call(port, "POST", "/cuts/xml", {"analysis_id": aid, "cuts": cl})["name"]
     assert names.endswith("2"), names

@@ -208,6 +208,7 @@ def route(method, path, body):
             n += 1
             name = f"{base} {n}"
         xml, warnings, stats = fcpxml.build_xml(a["seq"], applied, a["probes"], name)
+        applied = stats.pop("applied_cuts", None) or applied  # frame-exact, matches the XML
         out_dir = os.path.join(config.output_dir(), aid)
         os.makedirs(out_dir, exist_ok=True)
         xml_path = os.path.join(out_dir, _safe_name(name) + ".xml")

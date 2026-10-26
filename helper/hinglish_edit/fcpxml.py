@@ -5,6 +5,7 @@ Premiere: the original sequence is never changed.
 Every clip on every track is cut at the same places (like a razor through all tracks), and the
 gaps are closed.
 """
+import math
 import os
 import urllib.parse
 import uuid
@@ -84,11 +85,27 @@ def build_xml(seq, cuts, probes, name):
     srate = Rate(seq.get("fps") or 30)
     width, height = int(seq.get("width") or 1920), int(seq.get("height") or 1080)
     duration = float(seq["duration"])
+    # kept ranges in frames, rounded OUTWARD (start down, end up) so frame rounding can never
+    # trim the edge of a kept word; touching ranges merge
+    max_frame = srate.frames(duration)
     keeps = []
     for a, b in keep_ranges(cuts, duration):
-        fa, fb = srate.frames(a), srate.frames(b)
-        if fb > fa:
+        fa = max(0, int(math.floor(a * srate.fps + 1e-6)))
+        fb = min(max_frame, int(math.ceil(b * srate.fps - 1e-6)))
+        if fb <= fa:
+            continue
+        if keeps and fa <= keeps[-1][1]:
+            keeps[-1] = (keeps[-1][0], max(keeps[-1][1], fb))
+        else:
             keeps.append((fa, fb))
+    # the cuts exactly as the XML applies them (seconds), for mapping captions onto the edited sequence
+    applied_cuts, prev = [], 0
+    for fa, fb in keeps:
+        if fa > prev:
+            applied_cuts.append({"start": round(prev / srate.fps, 6), "end": round(fa / srate.fps, 6)})
+        prev = fb
+    if prev < max_frame:
+        applied_cuts.append({"start": round(prev / srate.fps, 6), "end": duration})
     # where each kept range starts on the new timeline
     new_pos, pos = [], 0
     for fa, fb in keeps:
@@ -310,6 +327,6 @@ def build_xml(seq, cuts, probes, name):
     _timecode(sq, srate, None)
     ET.indent(root, space="  ")
     xml = '<?xml version="1.0" encoding="UTF-8"?>\n<!DOCTYPE xmeml>\n' + ET.tostring(root, encoding="unicode") + "\n"
-    stats = {"frames": total_frames, "seconds": round(total_frames / srate.fps, 3),
+    stats = {"applied_cuts": applied_cuts, "frames": total_frames, "seconds": round(total_frames / srate.fps, 3),
              "clipitems": clip_n[0], "video_tracks": vt_count, "audio_tracks": a_xml_index}
     return xml, warnings, stats
