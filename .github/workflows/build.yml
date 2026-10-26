@@ -92,7 +92,7 @@ jobs:
       - name: Test the helper on Mac (cuts, XML, captions, render)
         working-directory: helper
         run: |
-          pip install numpy pyinstaller
+          pip install numpy pyinstaller pillow
           export PATH="$PWD/ffmpeg:$PATH"
           set +e
           python tests/test_end_to_end.py > test.log 2>&1
