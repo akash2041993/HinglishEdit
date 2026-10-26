@@ -4,7 +4,7 @@ An editing assistant for raw, full-length Hindi / English / Hinglish videos:
 
 - **Cuts**: finds silence, long pauses, filler words (umm, uh, hmm, अं, aa…) and repeated words. You
   review every cut, then it builds a **new edited sequence**. Your original sequence is never changed.
-- **Captions**: Roman Hinglish (*kya haal hai*), Devanagari (*क्या हाल है*) or as spoken. 14 designs:
+- **Captions**: Roman Hinglish (*kya haal hai*), Devanagari (*क्या हाल है*), as spoken, or English (translated: Sarvam key for best quality, otherwise a free service with a daily limit). 14 designs:
   viral big-word stacks, glow caps, aesthetic serif, justified stack with script word, two-tone italic,
   hook styles and full-length subtitles. Fonts, colors, size, position and timing can be changed.
 - **Zoom**: one-click smooth zoom in / out / punch-in / slow push on selected clips.

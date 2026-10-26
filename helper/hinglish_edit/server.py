@@ -8,7 +8,7 @@ import time
 import traceback
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-from . import ass_style, captions, config, cuts, fcpxml, jobs, media, render, transcribe
+from . import ass_style, captions, config, cuts, fcpxml, jobs, media, render, transcribe, translate
 from .fillers import FillerMatcher
 
 
@@ -304,7 +304,7 @@ class Handler(BaseHTTPRequestHandler):
             self._send(200, route(method, self.path.split("?")[0], body))
         except ApiError as e:
             self._send(e.code, {"error": str(e)})
-        except (media.MediaError, transcribe.TranscribeError) as e:
+        except (media.MediaError, transcribe.TranscribeError, translate.TranslateError) as e:
             self._send(400, {"error": str(e)})
         except Exception as e:  # noqa: BLE001
             traceback.print_exc()

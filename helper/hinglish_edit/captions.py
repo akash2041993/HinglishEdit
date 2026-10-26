@@ -86,10 +86,11 @@ def build(words, opts=None, cuts=None, sarvam_key=None, cache=None):
         ws = [w for w in ws if not matcher.is_sound(w["text"])]
     if not ws:
         return []
-    shown = _convert_words([w["text"] for w in ws], o["script"], sarvam_key, cache)
+    english = o["script"] == "english"
+    shown = _convert_words([w["text"] for w in ws], "original" if english else o["script"], sarvam_key, cache)
     for w, t in zip(ws, shown):
         t = _clean(t, o["punctuation"])
-        if o["uppercase"]:
+        if o["uppercase"] and not english:
             t = t.upper() if _LATIN.search(t) else t
         w["show"] = t
 
@@ -138,6 +139,19 @@ def build(words, opts=None, cuts=None, sarvam_key=None, cache=None):
         if nxt is not None and c["end"] > nxt - 0.02:
             c["end"] = max(c["start"] + 0.2, nxt - 0.02)
         c["start"], c["end"] = round(c["start"], 3), round(c["end"], 3)
+    if english and out:
+        from .translate import translate_lines
+        texts = translate_lines([c["text"] for c in out], sarvam_key=sarvam_key, cache=cache)
+        for c, en in zip(out, texts):
+            en = _clean(en, o["punctuation"])
+            if o["uppercase"]:
+                en = en.upper()
+            c["original"] = c["text"]
+            c["text"] = en
+            c["words"] = []  # re-timed below: translated words follow the speech evenly
+            c["max_chars"], c["line_count"] = o["max_chars"], o["lines"]
+            c.pop("lines", None)
+        apply_edits(out)
     return out
 
 
